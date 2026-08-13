@@ -59,22 +59,43 @@ Extraer: ritmo de cambio de imágenes, estilo visual, estructura narrativa, tono
 
 ## FASE 2 — AUDIO TTS
 
-**Motor:** Kokoro `am_puck`, speed=1.05 (local, gratis, sin GPU extra)
+**Ver guía completa:** `docs/voces.md`
 
+**Paso 0 — elegir voz (solo la primera vez):**
 ```bash
-python core/generar_audio_kokoro.py \
-  --guion scripts/guiones/ep0X_titulo.md \
-  --salida ep0X_titulo/audio/ep0X_full.wav
+python core/probar_voces.py --motor kokoro    # escucha todas las voces Kokoro
+python core/probar_voces.py --motor orpheus   # escucha todas las voces Orpheus
+# Resultados en: audio/prueba_voces/
 ```
 
-- Genera chunk por chunk (párrafo por párrafo)
-- Silencio entre párrafos: 0.6s
-- Si ya existe un chunk, lo salta (reanudable)
-- Output: `ep0X_titulo/audio/ep0X_full.wav` (24000Hz, mono)
+**Motores disponibles:**
 
-**Alternativa mayor calidad:** Miso One INT4 (`core/generar_audio_miso.py`)
-- Mejores pausas dramáticas, mejor para misterio
-- Requiere venv específico de MisoTTS — ver config.py para rutas
+| Motor | Calidad | Coste | VRAM | Cuándo usar |
+|-------|---------|-------|------|-------------|
+| Kokoro am_puck | Buena | Gratis | ~0 extra | Default — narración directa y clara |
+| Miso One INT4 | Superior | Gratis | ~4.5 GB | Pausas dramáticas naturales, más expresivo |
+| Orpheus leo | Buena | Gratis | ~8 GB | Alternativa masculina profunda |
+| ElevenLabs | Máxima | ~$5/mes | 0 (API) | Producción final de calidad máxima |
+
+**Generar audio (Kokoro — recomendado para empezar):**
+```bash
+python core/generar_audio_kokoro.py \
+  --guion ep0X_titulo/scripts/narration.txt \
+  --salida ep0X_titulo/audio/ep0X_full.wav \
+  --voice am_puck \
+  --speed 1.05
+```
+
+**Generar audio (Miso One — mayor calidad, mejor para misterios):**
+```bash
+python core/generar_audio_miso.py \
+  --guion ep0X_titulo/scripts/narration.txt \
+  --salida ep0X_titulo/audio/ep0X_full.wav \
+  --speaker 0
+```
+
+- Ambos scripts generan chunk por chunk y son reanudables si se interrumpen
+- Guardar la voz elegida en `ep0X_titulo/scripts/voz.txt` para reproducibilidad
 
 ---
 
