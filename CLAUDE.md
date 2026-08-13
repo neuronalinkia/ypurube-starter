@@ -3,23 +3,63 @@
 Este repositorio produce episodios de misterios históricos en inglés (~18 min) usando IA.
 **Lee este fichero completo antes de hacer cualquier cosa.**
 
+Setup inicial: ver `docs/setup.md`
+
 ---
 
 ## PIPELINE COMPLETO — orden obligatorio
 
 ```
-FASE 1  → Guion              (skill mystery-storytelling)
-FASE 2  → Audio TTS          (core/generar_audio_kokoro.py)
-FASE 3  → Whisper timestamps  (comando whisper)
-FASE 4  → Plan visual         (lista de imágenes con keywords del transcript)
-FASE 5  → Generar imágenes    (core/generar_imagen.py via Playwright — SIEMPRE Unlimited)
-FASE 6  → Auditoría imágenes  (revisar y regenerar malas)
-FASE 7  → Timing maps         (asignar imagen → rango de tiempo)
-FASE 8  → Sync Vexlo          (core/sincronizar_vexlo.py)
-FASE 9  → Montaje Ken Burns   (core/montar_episodio.py)
-FASE 10 → Diseño de sonido    (core/mezclar_sfx.py)
-FASE 11 → Thumbnail           (core/generar_imagen.py con prompt de documento/evidencia)
+FASE 0  → Analizar vídeo referencia  (skill analizar-video-referencia)
+FASE 1  → Guion                      (skill mystery-storytelling + blueprint de FASE 0)
+FASE 2  → Audio TTS                  (core/generar_audio_kokoro.py)
+FASE 3  → Whisper timestamps         (comando whisper)
+FASE 4  → Plan visual                (lista de imágenes con keywords del transcript)
+FASE 5  → Generar imágenes           (core/generar_imagen.py via Playwright — SIEMPRE Unlimited)
+FASE 6  → Auditoría imágenes         (revisar y regenerar malas)
+FASE 7  → Timing maps                (asignar imagen → rango de tiempo)
+FASE 8  → Sync Vexlo                 (core/sincronizar_vexlo.py)
+FASE 9  → Montaje Ken Burns          (core/montar_episodio.py)
+FASE 10 → Diseño de sonido           (core/mezclar_sfx.py)
+FASE 11 → Thumbnail                  (core/generar_imagen.py con prompt de documento/evidencia)
 ```
+
+**FASE 0 es obligatoria la primera vez.** El blueprint que genera alimenta FASE 1.
+Si ya tienes un blueprint guardado en `docs/`, puedes saltar directamente a FASE 1.
+
+---
+
+## FASE 0 — ANALIZAR VÍDEO DE REFERENCIA
+
+**Cuándo ejecutar:** Antes del primer episodio, o cuando quieras cambiar de estilo.
+
+```
+Skill: analizar-video-referencia
+```
+
+El usuario proporciona:
+- Un archivo MP4 local, o
+- Una URL de YouTube (requiere plugin `claude-video-vision`)
+
+**Lo que extrae la skill:**
+1. Estructura de bloques con timestamps
+2. Técnica de gancho (in medias res, pregunta imposible, dato que rompe)
+3. Ritmo visual (segundos por imagen en tensión vs contexto)
+4. Mecanismos de retención usados
+5. Tono y vocabulario del narrador
+6. Formato del thumbnail
+
+**Output:** `docs/referencia_[canal].md` — el blueprint que guía FASE 1.
+
+**Para aplicar a un nicho diferente:**
+El análisis detecta la FÓRMULA (estructura, ritmo, mecanismos) y la separa del CONTENIDO.
+Puedes aplicar la fórmula de un canal de misterios históricos a true crime, ciencia, historia bélica, etc.
+
+**Requiere plugin:**
+```bash
+claude mcp add claude-video-vision
+```
+Ver `docs/setup.md` para instalación completa.
 
 ---
 
@@ -30,7 +70,14 @@ FASE 11 → Thumbnail           (core/generar_imagen.py con prompt de documento/
 Skill: mystery-storytelling
 ```
 
-Estructura de 9 bloques:
+**Si hay blueprint de FASE 0:**
+```
+Skill: mystery-storytelling
+[Pegar o referenciar el blueprint de docs/referencia_[canal].md]
+Escribe el guion sobre [TEMA] siguiendo la estructura del blueprint.
+```
+
+**Estructura de 9 bloques:**
 - B1 Cold open (in medias res — momento más dramático)
 - B2 Contexto (quiénes, dónde, por qué importa + open loop)
 - B3 La última vez (normalidad documentada antes del quiebre)
@@ -46,14 +93,13 @@ Estructura de 9 bloques:
 - Cada frase debe describir algo VISUAL y LITERAL — el guion es también el plan de imágenes.
 - 2.800-3.200 palabras (18-20 min a 140 ppm).
 - NO listas, NO datos sueltos — historia fluida.
-- Guardar en: `scripts/guiones/ep0X_titulo.md`
+- Guardar en: `ep0X_titulo/scripts/narration.txt` (solo texto limpio, sin markdown)
 
-**Analizar vídeo de referencia de estilo:**
-Si el usuario envía un vídeo de referencia (Vexlo, Mack, etc.):
+**Auditar el cold open (GANCHO):**
 ```
-Skill: claude-video-vision:watch-video
+Skill: viral-hooks-mystery
 ```
-Extraer: ritmo de cambio de imágenes, estilo visual, estructura narrativa, tono.
+Pegar el bloque 1 del guion. La skill detecta los 4 patrones que matan el gancho y genera 3 variantes mejoradas.
 
 ---
 
@@ -135,6 +181,10 @@ Los nombres de personajes también son stop words — usar palabras de sus accio
 
 Cantidad objetivo: ≈1 imagen por concepto narrado → ≈130-160 para 19 min.
 
+**Ritmo visual:** usar el blueprint de FASE 0 como guía.
+- Tensión alta: X seg/imagen (del análisis)
+- Contexto/datos: Y seg/imagen (del análisis)
+
 ---
 
 ## FASE 5 — GENERACIÓN DE IMÁGENES
@@ -154,8 +204,8 @@ python core/generar_imagen.py "prompt|filename.png" \
   --out-dir ep0X_titulo/images/video/b1
 ```
 
-**Reglas técnicas Playwright en este PC (NO cambiar):**
-- `channel="chrome"` — Playwright Chromium crashea
+**Reglas técnicas Playwright (NO cambiar):**
+- `channel="chrome"` — Playwright Chromium crashea en Windows
 - `headless=False` — en headless el click Generate no dispara la petición
 - `keyboard.type(prompt, delay=6)` en chunks de 40 chars — `innerText`/`fill()` no actualiza React
 
@@ -173,10 +223,12 @@ S_ENV = ("Bold flat illustration style, 2D cartoon, thick black outlines, "
 # S_ENV NO incluye "oval face" — si lo incluyes meterá caras en paisajes
 ```
 
+**Adaptar el style string al blueprint:**
+Si el vídeo de referencia usa un estilo diferente (watercolor, realistic, noir sketch...),
+ajustar el style string en base al análisis de FASE 0. El estilo visual es parte de la fórmula.
+
 **Narrador (Reference Element):**
 ```python
-# El ID del elemento de referencia del narrador se guarda en:
-# ep0X_titulo/scripts/narrator_element_id.txt
 ELEMENT_ID = Path("ep0X_titulo/scripts/narrator_element_id.txt").read_text().strip()
 ELEMENT_REF = f"<<<{ELEMENT_ID}>>> "
 # Usar SOLO en prompts donde el narrador aparece en pantalla
@@ -191,6 +243,7 @@ python core/crear_elemento_ref.py
 
 **Crear scripts por bloque:**
 Ver `templates/generar_bloque_template.py` como punto de partida.
+Ver `ejemplos/ep03_cash_landrum/` para prompts reales de un episodio completo.
 Patrón: lista de tuplas `(prompt, filename)` → llamar a `core/generar_imagen.py`
 
 ---
@@ -223,6 +276,8 @@ B1_MAP = [
     (3.50,  7.20,  "b1/b1_002_empty_road_night.png"),
     # ...
 ]
+
+ALL_BLOCKS = [("B1", B1_MAP), ("B2", B2_MAP), ...]  # requerido por montar_episodio.py
 ```
 
 **Proceso:**
@@ -230,8 +285,7 @@ B1_MAP = [
 2. Asignar imagen a cada rango
 3. Verificar: sin gaps >0.5s, sin duplicados, max 5s por imagen
 
-**Timing maps v2 (si hay imágenes >5s o duplicados):**
-Analizar con agente → subdividir segmentos largos → generar imágenes adicionales.
+Ver `ejemplos/ep03_cash_landrum/timing_maps.py` como referencia completa de los 11 bloques.
 
 ---
 
@@ -258,9 +312,9 @@ Verificar `vexlo_debug.txt`:
 
 ```bash
 python core/montar_episodio.py \
-  --timing ep0X_titulo/timing_maps_v2.py \
-  --imgdir ep0X_titulo/images/video \
-  --audio ep0X_titulo/audio/ep0X_full.wav \
+  --ep-dir ep0X_titulo \
+  --timing ep0X_titulo/timing_maps.py \
+  --audio  ep0X_titulo/audio/ep0X_full.wav \
   --output ep0X_titulo/videos/ep0X_draft.mp4
 ```
 
@@ -283,16 +337,20 @@ vf = f"scale={W*2}:{H*2},zoompan=z={z}:x={x}:y={y}:d={frames}:s={W}x{H},setsar=1
 ## FASE 10 — DISEÑO DE SONIDO
 
 ```bash
+# Genérico (dark pad + un hit orquestal):
 python core/mezclar_sfx.py \
   --narration ep0X_titulo/audio/ep0X_full.wav \
-  --output ep0X_titulo/audio/ep0X_sfx_mix.wav
+  --output    ep0X_titulo/audio/ep0X_sfx_mix.wav
+
+# Específico del episodio (importar core y definir build_sfx_map):
+# Ver ejemplos/ep03_cash_landrum/mezclar_sfx.py
 ```
 
 **Volúmenes:**
 - Narración: 0dB (intocable)
-- Dark ambient pad (todo el vídeo): -32dB
-- SFX puntuales: -16 a -20dB
-- Música (Kevin MacLeod u otro): -24dB
+- Dark ambient pad (todo el vídeo): -26dB
+- SFX puntuales: -8 a -16dB
+- Música (Kevin MacLeod u otro): -22dB
 
 **Reemplazar audio sin re-renderizar:**
 ```bash
@@ -310,7 +368,7 @@ ffmpeg -i ep0X_draft.mp4 -i ep0X_sfx_mix.wav \
 
 ## FASE 11 — THUMBNAIL
 
-**Estilo validado: documento filtrado / evidencia real** (NO ilustración genérica de OVNI).
+**Estilo validado: documento filtrado / evidencia real** (NO ilustración genérica).
 
 ```python
 THUMB_PROMPT = (
@@ -321,6 +379,9 @@ THUMB_PROMPT = (
     "dark vignette edges, high contrast, noir atmosphere"
 )
 ```
+
+**Adaptar el estilo del thumbnail al blueprint de FASE 0.**
+Si el canal de referencia usa otro estilo (foto real, texto grande, sin texto...), replicarlo.
 
 ```bash
 python core/generar_imagen.py "prompt|thumbnail_v1.png" --out-dir ep0X_titulo/thumbnails
@@ -336,20 +397,33 @@ Generar 2-3 variantes antes de elegir.
 ep0X_titulo/
 ├── scripts/
 │   ├── narration.txt              # guion limpio (solo texto, sin markdown)
-│   └── narrator_element_id.txt   # ID del Reference Element del narrador
+│   ├── narrator_element_id.txt   # ID del Reference Element del narrador
+│   └── voz.txt                   # motor:voz:speed elegidos
 ├── audio/
 │   ├── ep0X_full.wav             # narración TTS
 │   ├── ep0X_full.json            # Whisper word-level timestamps
 │   └── ep0X_sfx_mix.wav          # narración + SFX + música
 ├── images/video/
 │   ├── b1/  b2/  ... b9/         # imágenes por bloque
-├── thumbnails/                    # variantes de thumbnail
+├── thumbnails/
 ├── videos/
 │   ├── ep0X_draft.mp4            # draft con Ken Burns
 │   └── ep0X_final.mp4            # con SFX mezclados
-├── timing_maps.py                 # v1
-└── timing_maps_v2.py              # v2 final (max 5s, sin duplicados)
+├── timing_maps.py
+└── timing_maps_v2.py
 ```
+
+---
+
+## SKILLS DISPONIBLES
+
+| Skill | Invocar con | Cuándo |
+|-------|-------------|--------|
+| `analizar-video-referencia` | `Skill: analizar-video-referencia` | FASE 0 — analiza el vídeo y crea el blueprint |
+| `mystery-storytelling` | `Skill: mystery-storytelling` | FASE 1 — escribe el guion |
+| `viral-hooks-mystery` | `Skill: viral-hooks-mystery` | FASE 1 — audita y mejora el cold open |
+
+Las skills están en `.claude/skills/` — Claude Code las detecta automáticamente.
 
 ---
 
@@ -357,9 +431,9 @@ ep0X_titulo/
 
 - [ ] Vídeo montado — 0 pantallas negras
 - [ ] Sync imagen-audio revisado en VLC
-- [ ] Audio SFX mezclado (-24dB música, -16/-20dB SFX)
+- [ ] Audio SFX mezclado (-22dB música, -16dB SFX)
 - [ ] Outro 10-15s (suscribirse + pregunta)
-- [ ] Thumbnail generada (estilo documento)
+- [ ] Thumbnail generada (estilo blueprint)
 - [ ] Título: "Can Anyone Explain What Happened at [CASO]?"
 - [ ] Audiencia: "No, no está dirigido a niños"
 - [ ] Toggle "Contenido alterado o sintético": ON
@@ -368,23 +442,19 @@ ep0X_titulo/
 
 ---
 
-## ANALIZAR VÍDEOS DE REFERENCIA
+## ADAPTAR A OTRO NICHO
 
-Cuando el usuario envíe un vídeo de referencia o quiera analizar el estilo de otro canal:
+El pipeline completo funciona para cualquier nicho de YouTube largo, no solo misterios históricos.
 
-```
-Skill: claude-video-vision:watch-video
-```
+**Para cambiar de nicho:**
 
-Extraer y documentar:
-- Ritmo de cambio de imágenes (segundos por imagen)
-- Estilo visual (colores, paleta, ilustración vs real)
-- Estructura narrativa (bloques, open loops, ganchos)
-- Tono de voz y cadencia del narrador
-- Uso de texto en pantalla
-- Transiciones
+1. **FASE 0**: Analizar 2-3 vídeos del nicho objetivo → blueprint con su fórmula
+2. **FASE 1**: Reemplazar `mystery-storytelling` por la estructura del blueprint
+3. **FASE 5**: Ajustar el style string según el estilo visual del nicho
+4. **FASE 10**: Ajustar el diseño de sonido al tono del nicho
+5. **FASE 11**: Ajustar el thumbnail al estilo del nicho
 
-Guardar análisis en `docs/referencia_[canal].md`.
+El resto del pipeline (TTS, Whisper, imágenes, Ken Burns, montaje) es 100% agnóstico al nicho.
 
 ---
 
@@ -397,3 +467,4 @@ Guardar análisis en `docs/referencia_[canal].md`.
 5. **S_ENV:** nunca incluir "oval face" para escenas sin personaje.
 6. **Kevin MacLeod:** atribución CC BY 4.0 obligatoria en descripción YouTube.
 7. **Idioma del vídeo:** inglés siempre (RPM $8-15 vs $1-3 en español).
+8. **FASE 0 primero:** nunca escribir el primer guion sin haber analizado un vídeo de referencia.
