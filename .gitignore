@@ -1,0 +1,45 @@
+# Audio generado
+*.wav
+*.mp3
+*.ogg
+
+# Imágenes generadas
+*.png
+*.jpg
+*.jpeg
+!templates/**/*.png
+!docs/**/*.png
+
+# Vídeos
+*.mp4
+*.mov
+
+# Temporales ffmpeg
+tmp_*/
+tmp_*.mp4
+
+# Sesión de Higgsfield (se guarda en ~/.higgsfield-session — no subir)
+.higgsfield-session/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Entorno
+.env
+*.local
+
+# Chunks de audio (temporales)
+*_chunks/
+
+# Debug
+vexlo_debug.txt
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
